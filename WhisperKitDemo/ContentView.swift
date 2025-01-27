@@ -12,15 +12,51 @@ struct ContentView: View {
     @StateObject private var transcriptionManager = TranscriptionManager()
     @State private var showingFilePicker = false
     
+    let availableModels = [
+        "openai_whisper-tiny",
+        "openai_whisper-tiny.en",
+        "openai_whisper-base",
+        "openai_whisper-base.en",
+        "openai_whisper-small",
+        "openai_whisper-small.en"
+    ]
+    
     var body: some View {
         VStack {
             Text("WhisperKit Transcriber")
                 .font(.title)
                 .padding()
             
-            // Mode selection
+            // Model selection
+            Picker("Select Model", selection: $transcriptionManager.selectedModel) {
+                ForEach(availableModels, id: \.self) { model in
+                    Text(model).tag(model)
+                }
+            }
+            .disabled(transcriptionManager.isModelLoaded)
+            .padding()
+            
+            // Load Model button
+            Button(action: {
+                Task {
+                    do {
+                        try await transcriptionManager.loadModel()
+                    } catch {
+                        print("Error loading model: \(error)")
+                    }
+                }
+            }) {
+                Text(transcriptionManager.isModelLoaded ? "Model Loaded" : "Load Model")
+                    .padding()
+                    .background(transcriptionManager.isModelLoaded ? Color.indigo : Color.orange)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+            }
+            .disabled(transcriptionManager.isModelLoaded)
+            .padding(.bottom)
+            
+            // File selection controls
             HStack {
-                // File selection
                 Button(action: { showingFilePicker = true }) {
                     Text(transcriptionManager.selectedAudioURL?.lastPathComponent ?? "Select Audio File")
                         .padding()
@@ -28,8 +64,8 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .cornerRadius(10)
                 }
+                .disabled(!transcriptionManager.isModelLoaded)
                 
-                // Transcribe file button
                 Button(action: {
                     transcriptionManager.transcribeAudio()
                 }) {
@@ -39,10 +75,10 @@ struct ContentView: View {
                         .foregroundColor(.white)
                         .cornerRadius(10)
                 }
-                .disabled(transcriptionManager.selectedAudioURL == nil || transcriptionManager.isTranscribing)
+                .disabled(!transcriptionManager.isModelLoaded || transcriptionManager.selectedAudioURL == nil || transcriptionManager.isTranscribing)
             }
             
-            // Real-time recording controls
+            // Recording button
             Button(action: {
                 if transcriptionManager.isRecording {
                     transcriptionManager.stopRecording()
@@ -56,6 +92,7 @@ struct ContentView: View {
                     .foregroundColor(.white)
                     .cornerRadius(10)
             }
+            .disabled(!transcriptionManager.isModelLoaded)
             .padding()
             
             // Transcription output

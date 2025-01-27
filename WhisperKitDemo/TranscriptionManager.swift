@@ -15,25 +15,22 @@ class TranscriptionManager: ObservableObject {
     @Published var isTranscribing = false
     @Published var selectedAudioURL: URL?
     @Published var isRecording = false
+    @Published var isModelLoaded = false
+    @Published var selectedModel = "openai_whisper-tiny"
     
     private var realTimeProcessor: RealTimeAudioProcessor?
     private var whisperKit: WhisperKit?
     private var audioBuffer = [Float]()
     private let bufferThreshold = 16000 * 3 // 3 seconds of audio at 16kHz
     
-    init() {
-        setupWhisperKit()
-    }
+    init() { }
     
-    private func setupWhisperKit() {
-        Task {
-            do {
-                whisperKit = try await WhisperKit()
-                // Optional: Pre-warm models
-                try await whisperKit?.prewarmModels()
-            } catch {
-                print("Error setting up WhisperKit: \(error)")
-            }
+    func loadModel() async throws {
+        whisperKit = try await WhisperKit(WhisperKitConfig(model: selectedModel))
+        // Pre-warm models
+        try await whisperKit?.prewarmModels()
+        await MainActor.run {
+            isModelLoaded = true
         }
     }
     
